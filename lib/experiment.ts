@@ -1,8 +1,10 @@
 // Attentional blink trial generation and scoring.
 
 export const SETTINGS = {
-  /** Time each item is on screen (ms). 100 ms ≈ 10 items per second, the classic AB rate. */
-  itemMs: 100,
+  /** Time each item is on screen (ms). 150 ms ≈ 6.7 items per second. */
+  itemMs: 150,
+  /** Blank screen after a response, before the next fixation cross (ms). */
+  blankMs: 700,
   /** Items per RSVP stream. */
   streamLength: 18,
   /** Earliest / latest (0-based) position of the first target. */

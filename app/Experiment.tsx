@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ANSWER_LABEL,
   CONDITION_LABEL,
-  MAX_OK_FRAME_GAP_MS,
   SETTINGS,
   generateTrials,
   summarize,
@@ -14,7 +12,7 @@ import {
   type TrialResult,
 } from "@/lib/experiment";
 
-type Phase = "login" | "instructions" | "ready" | "running" | "respond" | "feedback" | "results";
+type Phase = "login" | "instructions" | "ready" | "running" | "respond" | "results";
 
 const STORAGE_KEY = "ab-student";
 
@@ -82,7 +80,8 @@ export default function Experiment() {
   }
 
   // RSVP presentation: drive the display from requestAnimationFrame and write straight
-  // into the DOM so React rendering can't add jitter to the 100 ms item timing.
+  // into the DOM so React rendering can't add jitter to the item timing.
+  // Timeline per trial: blank → fixation cross → stream.
   useEffect(() => {
     if (phase !== "running" || !trial) return;
     const el = stimRef.current;
@@ -91,13 +90,14 @@ export default function Experiment() {
     let raf = 0;
     let start = -1;
     let prev = -1;
-    let shown = -2;
-    const streamEnd = SETTINGS.fixationMs + trial.stream.length * SETTINGS.itemMs;
+    let shown = -3;
+    const streamStart = SETTINGS.blankMs + SETTINGS.fixationMs;
+    const streamEnd = streamStart + trial.stream.length * SETTINGS.itemMs;
     maxFrameGap.current = 0;
 
     const tick = (now: number) => {
       if (start < 0) start = now;
-      if (prev >= 0 && now - start > SETTINGS.fixationMs) {
+      if (prev >= 0 && now - start > streamStart) {
         maxFrameGap.current = Math.max(maxFrameGap.current, now - prev);
       }
       prev = now;
@@ -111,11 +111,13 @@ export default function Experiment() {
         return;
       }
 
-      const item = t < SETTINGS.fixationMs ? -1 : Math.floor((t - SETTINGS.fixationMs) / SETTINGS.itemMs);
+      // -2 = blank, -1 = fixation, 0.. = stream item
+      const item =
+        t < SETTINGS.blankMs ? -2 : t < streamStart ? -1 : Math.floor((t - streamStart) / SETTINGS.itemMs);
       if (item !== shown) {
         shown = item;
         el.className = item < 0 ? "rsvp fixation" : "rsvp";
-        el.textContent = item < 0 ? "+" : trial.stream[item];
+        el.textContent = item === -2 ? "" : item === -1 ? "+" : trial.stream[item];
       }
       raf = requestAnimationFrame(tick);
     };
@@ -135,34 +137,30 @@ export default function Experiment() {
         maxFrameGapMs: maxFrameGap.current,
       };
       setResults((rs) => [...rs, result]);
-      setPhase("feedback");
+      // No feedback: go straight on to the next trial.
+      if (index + 1 >= trials.length) {
+        setPhase("results");
+      } else {
+        setIndex(index + 1);
+        setPhase("running");
+      }
     },
-    [phase, trial],
+    [phase, trial, index, trials.length],
   );
-
-  const next = useCallback(() => {
-    if (index + 1 >= trials.length) {
-      setPhase("results");
-    } else {
-      setIndex((i) => i + 1);
-      setPhase("running");
-    }
-  }, [index, trials.length]);
 
   // Keyboard support for laptops.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       if (phase === "respond" && KEY_TO_ANSWER[k]) respond(KEY_TO_ANSWER[k]);
-      else if ((phase === "feedback" || phase === "ready") && (k === " " || k === "enter")) {
+      else if (phase === "ready" && (k === " " || k === "enter")) {
         e.preventDefault();
-        if (phase === "ready") setPhase("running");
-        else next();
+        setPhase("running");
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [phase, respond, next]);
+  }, [phase, respond]);
 
   if (phase === "login") {
     return (
@@ -187,11 +185,15 @@ export default function Experiment() {
       <main className="screen">
         <div className="card">
           <h1>Hi {name}!</h1>
-          <p>You will see a rapid stream of digits in the middle of the screen, about 10 per second.</p>
+          <p>
+            You will see a rapid stream of digits in the middle of the screen, about{" "}
+            {Math.round(1000 / SETTINGS.itemMs)} per second.
+          </p>
           <ul>
             <li>Watch for the targets <strong>6</strong> and <strong>9</strong>.</li>
             <li>A stream can contain no target, only a 6, only a 9, or both.</li>
-            <li>After each stream, report what you saw. You get feedback and a running score.</li>
+            <li>After each stream, report what you saw. The next stream then starts automatically.</li>
+            <li>You see your score at the end.</li>
           </ul>
           <p>Keep your eyes on the cross (+) before each stream starts. Hold your phone steady and turn the brightness up.</p>
           <button className="btn" onClick={startExperiment}>
@@ -244,39 +246,6 @@ export default function Experiment() {
     );
   }
 
-  if (phase === "feedback") {
-    const last = results[results.length - 1];
-    return (
-      <main className="screen">
-        <div className="topbar">
-          <span>
-            Trial {index + 1} / {trials.length}
-          </span>
-          <span>
-            Score {score} / {results.length}
-          </span>
-        </div>
-        <p className={`feedback ${last.isCorrect ? "good" : "bad"}`}>{last.isCorrect ? "Correct!" : "Wrong"}</p>
-        <p className="score">
-          Answer: <strong>{ANSWER_LABEL[last.correct]}</strong>
-          {last.lag ? ` (second target ${last.lag} items after the first)` : ""}
-          {!last.isCorrect && (
-            <>
-              <br />
-              You said: {ANSWER_LABEL[last.response]}
-            </>
-          )}
-        </p>
-        {last.maxFrameGapMs > MAX_OK_FRAME_GAP_MS && (
-          <p className="score">⚠️ The screen stuttered during this stream, so this trial is flagged in the data.</p>
-        )}
-        <button className="btn" style={{ maxWidth: 460 }} onClick={next}>
-          {index + 1 >= trials.length ? "See results" : "Next trial"}
-        </button>
-      </main>
-    );
-  }
-
   // Results
   const summary = summarize(results);
   const pct = results.length ? Math.round((100 * score) / results.length) : 0;
@@ -310,8 +279,9 @@ export default function Experiment() {
           ))}
         </div>
         <p style={{ marginTop: 16 }}>
-          The attentional blink: if the second target comes shortly after the first (lag 2, ~200 ms), people often miss
-          it. At lag 4 (~400 ms) it is usually easier to report both. Compare your two bars for two targets.
+          The attentional blink: if the second target comes shortly after the first (lag 2, ~{2 * SETTINGS.itemMs} ms),
+          people often miss it. At lag 4 (~{4 * SETTINGS.itemMs} ms) it is usually easier to report both. Compare your
+          two bars for two targets.
         </p>
         <button className="btn" onClick={downloadCsv}>
           Download my data (CSV)
