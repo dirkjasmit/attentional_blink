@@ -119,6 +119,19 @@ input {
 .answer:active { background: var(--accent); }
 .answer .key { display: block; font-size: 0.75rem; color: var(--muted); font-weight: 400; margin-top: 4px; }
 
+.params {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.params summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+.params dl { margin: 10px 0 2px; display: grid; gap: 8px; }
+.params dl > div { display: grid; grid-template-columns: 8.5rem 1fr; gap: 10px; font-size: 0.82rem; }
+.params dt { color: var(--muted); }
+.params dd { margin: 0; }
+@media (max-width: 380px) { .params dl > div { grid-template-columns: 1fr; gap: 0; } }
+
 .score { color: var(--muted); font-size: 0.95rem; }
 .feedback { font-size: 2rem; font-weight: 700; margin: 0; }
 .feedback.good { color: var(--good); }

@@ -69,9 +69,30 @@ export default function Experiment() {
     setPhase("login");
   }
 
-  function startExperiment() {
+  /** Number of trials for this run: ?trials=N in the URL, otherwise the default. */
+  function trialCount() {
     const param = Number(new URLSearchParams(window.location.search).get("trials"));
-    const n = Number.isFinite(param) && param >= 4 ? Math.min(param, 400) : SETTINGS.defaultTrials;
+    return Number.isFinite(param) && param >= 4 ? Math.min(param, 400) : SETTINGS.defaultTrials;
+  }
+
+  /** Human-readable version of the settings, shown on the start screen. */
+  function parameterList(): [string, string][] {
+    const { soaMs, itemOnMs, streamLength, firstTargetMin, firstTargetMax, lags, fixationMs, interTrialMs } = SETTINGS;
+    return [
+      ["SOA", `${soaMs} ms (${Math.round(1000 / soaMs)} items per second)`],
+      ["Item duration", `${itemOnMs} ms visible, then ${soaMs - itemOnMs} ms blank`],
+      ["Stream length", `${streamLength} digits (${(streamLength * soaMs) / 1000} s)`],
+      ["Targets", "6 and 9 — other digits are 0–5, 7 and 8"],
+      ["First target", `item ${firstTargetMin + 1}–${firstTargetMax + 1} of the stream`],
+      ["Lags (T1→T2)", lags.map((l) => `${l} (${l * soaMs} ms)`).join(" and ")],
+      ["Trials", `${trialCount()} — 50% two targets, 25% one target, 25% no target`],
+      ["Before each stream", `${interTrialMs} ms blank, then a fixation cross for ${fixationMs} ms`],
+      ["Feedback", "none during the experiment; score is shown at the end"],
+    ];
+  }
+
+  function startExperiment() {
+    const n = trialCount();
     setTrials(generateTrials(n));
     setResults([]);
     setIndex(0);
@@ -206,6 +227,17 @@ export default function Experiment() {
             <li>You see your score at the end.</li>
           </ul>
           <p>Keep your eyes on the cross (+) before each stream starts. Hold your phone steady and turn the brightness up.</p>
+          <details className="params">
+            <summary>Experimental parameters</summary>
+            <dl>
+              {parameterList().map(([k, v]) => (
+                <div key={k}>
+                  <dt>{k}</dt>
+                  <dd>{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
           <button className="btn" onClick={startExperiment}>
             Start experiment
           </button>
