@@ -89,9 +89,9 @@ export default function Experiment() {
     let raf = 0;
     let start = -1;
     let prev = -1;
-    let shown = -3;
-    const streamStart = SETTINGS.blankMs + SETTINGS.fixationMs;
-    const streamEnd = streamStart + trial.stream.length * SETTINGS.itemMs;
+    let shownText: string | null = null;
+    const streamStart = SETTINGS.interTrialMs + SETTINGS.fixationMs;
+    const streamEnd = streamStart + trial.stream.length * SETTINGS.soaMs;
     maxFrameGap.current = 0;
 
     const tick = (now: number) => {
@@ -110,13 +110,24 @@ export default function Experiment() {
         return;
       }
 
-      // -2 = blank, -1 = fixation, 0.. = stream item
-      const item =
-        t < SETTINGS.blankMs ? -2 : t < streamStart ? -1 : Math.floor((t - streamStart) / SETTINGS.itemMs);
-      if (item !== shown) {
-        shown = item;
-        el.className = item < 0 ? "rsvp fixation" : "rsvp";
-        el.textContent = item === -2 ? "" : item === -1 ? "+" : trial.stream[item];
+      // Blank → fixation cross → stream. Within each SOA the digit is visible for
+      // itemOnMs and the remainder of the SOA is blank.
+      let text = "";
+      let fixation = true;
+      if (t >= streamStart) {
+        const inStream = t - streamStart;
+        fixation = false;
+        if (inStream % SETTINGS.soaMs < SETTINGS.itemOnMs) {
+          text = trial.stream[Math.floor(inStream / SETTINGS.soaMs)];
+        }
+      } else if (t >= SETTINGS.interTrialMs) {
+        text = "+";
+      }
+
+      if (text !== shownText) {
+        shownText = text;
+        el.className = fixation ? "rsvp fixation" : "rsvp";
+        el.textContent = text;
       }
       raf = requestAnimationFrame(tick);
     };
@@ -186,7 +197,7 @@ export default function Experiment() {
           <h1>Hi {name}!</h1>
           <p>
             You will see a rapid stream of digits in the middle of the screen, about{" "}
-            {Math.round(1000 / SETTINGS.itemMs)} per second.
+            {Math.round(1000 / SETTINGS.soaMs)} per second.
           </p>
           <ul>
             <li>Watch for the targets <strong>6</strong> and <strong>9</strong>.</li>
@@ -281,7 +292,7 @@ export default function Experiment() {
         </div>
         <p style={{ marginTop: 16 }}>
           The attentional blink: if the second target comes shortly after the first (lag {shortLag}, ~
-          {shortLag * SETTINGS.itemMs} ms), people often miss it. At lag {longLag} (~{longLag * SETTINGS.itemMs} ms) it
+          {shortLag * SETTINGS.soaMs} ms), people often miss it. At lag {longLag} (~{longLag * SETTINGS.soaMs} ms) it
           is usually easier to report both. Compare your two bars for two targets.
         </p>
         <button className="btn" onClick={downloadCsv}>

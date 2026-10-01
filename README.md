@@ -2,7 +2,9 @@
 
 An RSVP attentional blink experiment for students, built with Next.js and deployed on Vercel.
 
-- Digits flash at 150 ms per item (20 items per stream). The targets are **6** and **9**.
+- RSVP at a 100 ms SOA (10 items per second, 20 items per stream): each digit is visible for 83 ms,
+  followed by a 17 ms blank. Set `itemOnMs` equal to `soaMs` in `lib/experiment.ts` for a gapless stream.
+  The targets are **6** and **9**.
 - Trial mix: 50% two targets (one 6 and one 9, split evenly between lag 3 and lag 7), 25% one target, 25% no target.
 - Answer options: No target / 6 / 9 / Both. There is no feedback during the experiment; responses are recorded
   and the next trial starts automatically (blank 700 ms, fixation cross 600 ms, then the stream).

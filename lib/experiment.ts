@@ -1,10 +1,18 @@
 // Attentional blink trial generation and scoring.
 
 export const SETTINGS = {
-  /** Time each item is on screen (ms). 150 ms ≈ 6.7 items per second. */
-  itemMs: 150,
+  /**
+   * Stimulus onset asynchrony: time from one item's onset to the next (ms).
+   * 100 ms (10 items/s) is the standard rate in the attentional blink literature.
+   */
+  soaMs: 100,
+  /**
+   * How long each digit is actually visible within its SOA; the rest of the SOA is blank.
+   * 83 ms + 17 ms blank = 5 frames on, 1 frame off on a 60 Hz screen.
+   */
+  itemOnMs: 83,
   /** Blank screen after a response, before the next fixation cross (ms). */
-  blankMs: 700,
+  interTrialMs: 700,
   /** Items per RSVP stream. Keep room for firstTargetMax + the longest lag plus a few items. */
   streamLength: 20,
   /** Earliest / latest (0-based) position of the first target. */
