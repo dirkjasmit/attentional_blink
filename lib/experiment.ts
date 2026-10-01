@@ -5,13 +5,13 @@ export const SETTINGS = {
   itemMs: 150,
   /** Blank screen after a response, before the next fixation cross (ms). */
   blankMs: 700,
-  /** Items per RSVP stream. */
-  streamLength: 18,
+  /** Items per RSVP stream. Keep room for firstTargetMax + the longest lag plus a few items. */
+  streamLength: 20,
   /** Earliest / latest (0-based) position of the first target. */
-  firstTargetMin: 4,
-  firstTargetMax: 7,
-  /** Lags (in items) between T1 and T2 on dual-target trials. */
-  lags: [2, 4] as const,
+  firstTargetMin: 3,
+  firstTargetMax: 6,
+  /** Lags (in items) between T1 and T2 on dual-target trials. Dual trials are split evenly over these. */
+  lags: [3, 7] as const,
   /** Fixation cross duration before the stream (ms). */
   fixationMs: 600,
   /** Default number of trials; can be overridden with ?trials=N in the URL. */
@@ -22,7 +22,7 @@ export type Target = "6" | "9";
 export type Answer = "none" | "6" | "9" | "both";
 export type Lag = (typeof SETTINGS.lags)[number];
 
-export type Condition = "none" | "single" | "lag2" | "lag4";
+export type Condition = "none" | "single" | `lag${number}`;
 
 export interface Trial {
   number: number;
@@ -72,9 +72,9 @@ function distractorStream(length: number): string[] {
   return out;
 }
 
-function buildTrial(number: number, condition: Condition, targets: Target[]): Trial {
+function buildTrial(number: number, lag: Lag | null, targets: Target[]): Trial {
   const stream = distractorStream(SETTINGS.streamLength);
-  const lag: Lag | null = condition === "lag2" ? 2 : condition === "lag4" ? 4 : null;
+  const condition: Condition = targets.length === 0 ? "none" : lag === null ? "single" : `lag${lag}`;
   const targetPositions: number[] = [];
 
   if (targets.length > 0) {
@@ -92,27 +92,28 @@ function buildTrial(number: number, condition: Condition, targets: Target[]): Tr
 
 /**
  * Balanced, shuffled trial list:
- *  - 50% dual-target (one 6 and one 9, order counterbalanced), split evenly over lag 2 and lag 4
+ *  - 50% dual-target (one 6 and one 9, order counterbalanced), split evenly over SETTINGS.lags
  *  - 25% single target (6 or 9)
  *  - 25% no target
  */
 export function generateTrials(total: number): Trial[] {
+  const lags = SETTINGS.lags;
   const nDual = Math.round(total * 0.5);
   const nSingle = Math.round(total * 0.25);
   const nNone = total - nDual - nSingle;
 
-  const specs: { condition: Condition; targets: Target[] }[] = [];
+  const specs: { lag: Lag | null; targets: Target[] }[] = [];
   for (let i = 0; i < nDual; i++) {
-    const condition: Condition = i % 2 === 0 ? "lag2" : "lag4";
-    const order: Target[] = Math.floor(i / 2) % 2 === 0 ? ["6", "9"] : ["9", "6"];
-    specs.push({ condition, targets: order });
+    const lag = lags[i % lags.length];
+    const order: Target[] = Math.floor(i / lags.length) % 2 === 0 ? ["6", "9"] : ["9", "6"];
+    specs.push({ lag, targets: order });
   }
   for (let i = 0; i < nSingle; i++) {
-    specs.push({ condition: "single", targets: [i % 2 === 0 ? "6" : "9"] });
+    specs.push({ lag: null, targets: [i % 2 === 0 ? "6" : "9"] });
   }
-  for (let i = 0; i < nNone; i++) specs.push({ condition: "none", targets: [] });
+  for (let i = 0; i < nNone; i++) specs.push({ lag: null, targets: [] });
 
-  return shuffle(specs).map((s, i) => buildTrial(i + 1, s.condition, s.targets));
+  return shuffle(specs).map((s, i) => buildTrial(i + 1, s.lag, s.targets));
 }
 
 export const ANSWER_LABEL: Record<Answer, string> = {
@@ -122,19 +123,24 @@ export const ANSWER_LABEL: Record<Answer, string> = {
   both: "Both 6 and 9",
 };
 
-export const CONDITION_LABEL: Record<Condition, string> = {
-  none: "No target",
-  single: "One target",
-  lag2: "Two targets, lag 2",
-  lag4: "Two targets, lag 4",
-};
+export function conditionLabel(condition: Condition): string {
+  if (condition === "none") return "No target";
+  if (condition === "single") return "One target";
+  return `Two targets, lag ${condition.slice(3)}`;
+}
 
 export function summarize(results: TrialResult[]) {
-  const conditions: Condition[] = ["none", "single", "lag2", "lag4"];
+  const conditions: Condition[] = ["none", "single", ...SETTINGS.lags.map((l): Condition => `lag${l}`)];
   return conditions.map((c) => {
     const rs = results.filter((r) => r.condition === c);
     const correct = rs.filter((r) => r.isCorrect).length;
-    return { condition: c, n: rs.length, correct, pct: rs.length ? (100 * correct) / rs.length : 0 };
+    return {
+      condition: c,
+      label: conditionLabel(c),
+      n: rs.length,
+      correct,
+      pct: rs.length ? (100 * correct) / rs.length : 0,
+    };
   });
 }
 

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  CONDITION_LABEL,
   SETTINGS,
   generateTrials,
   summarize,
@@ -248,6 +247,8 @@ export default function Experiment() {
 
   // Results
   const summary = summarize(results);
+  const shortLag = SETTINGS.lags[0];
+  const longLag = SETTINGS.lags[SETTINGS.lags.length - 1];
   const pct = results.length ? Math.round((100 * score) / results.length) : 0;
 
   function downloadCsv() {
@@ -270,7 +271,7 @@ export default function Experiment() {
         <div className="bars">
           {summary.map((s) => (
             <div className="bar-row" key={s.condition}>
-              <span>{CONDITION_LABEL[s.condition]}</span>
+              <span>{s.label}</span>
               <div className="bar-track">
                 <div className="bar-fill" style={{ width: `${s.pct}%` }} />
               </div>
@@ -279,9 +280,9 @@ export default function Experiment() {
           ))}
         </div>
         <p style={{ marginTop: 16 }}>
-          The attentional blink: if the second target comes shortly after the first (lag 2, ~{2 * SETTINGS.itemMs} ms),
-          people often miss it. At lag 4 (~{4 * SETTINGS.itemMs} ms) it is usually easier to report both. Compare your
-          two bars for two targets.
+          The attentional blink: if the second target comes shortly after the first (lag {shortLag}, ~
+          {shortLag * SETTINGS.itemMs} ms), people often miss it. At lag {longLag} (~{longLag * SETTINGS.itemMs} ms) it
+          is usually easier to report both. Compare your two bars for two targets.
         </p>
         <button className="btn" onClick={downloadCsv}>
           Download my data (CSV)

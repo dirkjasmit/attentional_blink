@@ -2,8 +2,8 @@
 
 An RSVP attentional blink experiment for students, built with Next.js and deployed on Vercel.
 
-- Digits flash at 150 ms per item (18 items per stream). The targets are **6** and **9**.
-- Trial mix: 50% two targets (one 6 and one 9, split evenly between lag 2 and lag 4), 25% one target, 25% no target.
+- Digits flash at 150 ms per item (20 items per stream). The targets are **6** and **9**.
+- Trial mix: 50% two targets (one 6 and one 9, split evenly between lag 3 and lag 7), 25% one target, 25% no target.
 - Answer options: No target / 6 / 9 / Both. There is no feedback during the experiment; responses are recorded
   and the next trial starts automatically (blank 700 ms, fixation cross 600 ms, then the stream).
 - Results screen shows accuracy per condition. Students can download their data as a CSV file.
